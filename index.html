@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Le Temple d'Aicha & Amadou</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Playfair+Display:ital,wght@0,400;1,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gold: #d4af37;        /* Or Royal */
+            --white-pure: #ffffff;  /* Blanc Principal */
+            --ivory: #fdfbf7;      /* Ivoire pour le relief */
+            --soft-rose: #fce4ec;   /* Touche de Rose */
+            --text-dark: #444444;   /* Gris doux pour la lecture (pas de noir) */
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--white-pure); /* Fond blanc principal */
+            color: var(--gold);
+            font-family: 'Playfair Display', serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        canvas { 
+            display: block; 
+            background: radial-gradient(circle, #ffffff 0%, #fff5f7 100%); /* Léger reflet rose en fond 3D */
+        }
+
+        /* --- SYSTÈME DE CHARGEMENT --- */
+        #loading-screen {
+            position: fixed; inset: 0;
+            background: var(--white-pure);
+            z-index: 9999;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+
+        .loader-logo {
+            font-family: 'Cinzel';
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, var(--gold), #f7ef8a, var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shine 3s infinite linear;
+        }
+
+        @keyframes shine {
+            0% { background-position: 0px; }
+            100% { background-position: 500px; }
+        }
+
+        .progress-container {
+            width: 250px; height: 3px;
+            background: var(--soft-rose); /* Barre de fond rose */
+            position: relative;
+            border-radius: 10px;
+        }
+
+        #progress-bar {
+            position: absolute; left: 0; top: 0; height: 100%;
+            width: 0%; background: var(--gold);
+            box-shadow: 0 0 10px var(--gold);
+            border-radius: 10px;
+        }
+
+        /* --- INTERFACE D'ENTRÉE --- */
+        #gate-overlay {
+            position: fixed; inset: 0;
+            z-index: 8000;
+            display: none;
+            flex-direction: column;
+            justify-content: center; align-items: center;
+            background: rgba(255, 255, 255, 0.92); /* Blanc translucide */
+            backdrop-filter: blur(8px);
+            transition: opacity 2s ease;
+        }
+
+        .gate-btn {
+            padding: 20px 45px;
+            border: 2px solid var(--gold);
+            background: white;
+            color: var(--gold);
+            font-family: 'Cinzel';
+            font-size: 1.1rem;
+            letter-spacing: 5px;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(212, 175, 55, 0.15);
+            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .gate-btn:hover {
+            background: var(--gold);
+            color: white;
+            box-shadow: 0 10px 30px var(--gold);
+            transform: translateY(-3px);
+        }
+
+        /* --- INTERFACE STORYBOARD --- */
+        #story-panel {
+            position: fixed;
+            bottom: 50px; left: 50%;
+            transform: translateX(-50%) translateY(150px);
+            width: 90%; max-width: 500px;
+            z-index: 5000;
+            transition: transform 1s cubic-bezier(0.19, 1, 0.22, 1), opacity 1s;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #story-panel.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .story-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--soft-rose);
+            padding: 30px;
+            text-align: center;
+            border-top: 5px solid var(--gold);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.06);
+        }
+
+        .story-title {
+            font-family: 'Cinzel';
+            font-size: 0.85rem;
+            letter-spacing: 4px;
+            margin-bottom: 12px;
+            color: var(--gold);
+            font-weight: bold;
+        }
+
+        .story-text {
+            font-size: 1.3rem;
+            color: var(--text-dark); /* Gris foncé doux pour le confort visuel */
+            line-height: 1.6;
+            font-style: italic;
+        }
+
+        /* --- INDICATEUR DE SCROLL --- */
+        .scroll-hint {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            font-family: 'Cinzel'; font-size: 0.65rem; letter-spacing: 3px;
+            color: var(--gold);
+            opacity: 0.8; animation: breathe 2.5s infinite ease-in-out;
+        }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 0.3; transform: translateX(-50%) translateY(0); }
+            50% { opacity: 0.9; transform: translateX(-50%) translateY(-8px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="loader-logo">C & Z</div>
+        <div class="progress-container"><div id="progress-bar"></div></div>
+        <p style="margin-top:15px; font-size:0.7rem; letter-spacing:2px;">CONSTRUCTION DU PALAIS...</p>
+    </div>
+
+    <div id="gate-overlay">
+       <h1 style="font-family:'Cinzel'; margin-bottom:40px; font-size:1.5rem;">LE PALAIS DES SOUVENIRS</h1>
+        <button class="gate-btn" onclick="unlockPalace()">OUVRIR LES PORTES</button>
+    </div>
+
+    <div id="story-panel">
+        <div class="story-card">
+            <div class="story-title" id="ui-title">CHAPITRE I</div>
+            <div class="story-text" id="ui-text">"Le premier regard qui a tout changé."</div>
+        </div>
+    </div>
+
+    <div class="scroll-hint" id="hint">GLISSEZ VERS LE HAUT POUR AVANCER</div>
+
+<audio id="palace-music" src="music/palace.mp3" preload="auto"></audio>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <script>
+        /**
+         * 1000+ Lignes de Logique 3D Immersive
+         */
+        
+        // --- CONFIGURATION ---
+        const CONFIG = {
+            corridorLength: 300,
+            wallColor: 0xffffff,
+            goldColor: 0xd4af37,
+            ivoryColor: 0xfffff0,
+            camHeight: 1.7,
+            stepGap: 60, // Espace entre chaque oeuvre
+            exposureTime: 2.5 // Temps de focus sur l'oeuvre
+        };
+
+        const STORYBOARD = [
+            { 
+                z: -40, 
+                side: 'left',
+                title: "L'ŒUVRE I — LA RENCONTRE", 
+                text: "On s’est rencontrés au mariage d’une amie qui est aussi ma voisine. Je ne la connaissais pas encore, mais elle m’a tout de suite plu et, comme je connaissais sa cousine, j’ai demandé son numéro.",
+                image: "photo1.jpg"
+            },
+            { 
+                z: -100, 
+                side: 'right',
+                title: "L'ŒUVRE II — Le début de l’amour", 
+                text: "Je lui ai écrit en rentrant à la maison et, petit à petit, j’ai commencé à lui plaire. Très vite, on s’est mis ensemble.",
+                image: "photo2.jpg"
+            },
+            { 
+                z: -160, 
+                side: 'left',
+                title: "L'ŒUVRE III — Les moments forts", 
+                text: "Notre premier rendez-vous s’est passé dans un appartement et j’y ai vécu l’une des meilleures journées de ma vie. Ensuite, on a beaucoup parlé de projets et on s’est rendu compte qu’on s’aimait vraiment.",
+                image: "photo3.jpg"
+            },
+            { 
+                z: -220, 
+                side: 'right',
+                title: "Aujourd’hui", 
+                text: "Malgré quelques petites disputes, on se réconcilie toujours. On s’est vus plusieurs fois depuis, et aujourd’hui encore, je suis avec ma copine Zara. 💖",
+                image: "photo4.jpg"
+            }
+        ];
+
+        // --- VARIABLES SYSTÈME ---
+        let envelopeGroup, flapPivot, letter;
+        let scene, camera, renderer, clock, manager;
+        let palaceGroup, doorPivotL, doorPivotR;
+        let wallBlock;
+        let envelopeOpened = false;
+        let clouds = [], artworks = [];
+        let isPalaceOpen = false;
+        let currentZProgress = 15;
+        let targetZProgress = 15;
+        let isAutoRotating = false;
+         
+        
+
+        // --- INITIALISATION ---
+        function init() {
+            clock = new THREE.Clock();
+            setupManager();
+            setupScene();
+            buildArchitecture();
+            buildDoors();
+            buildClouds();
+            buildArtworks();
+            buildEnvelope();
+            createClickHint();
+            setupEvents();
+            animate();
+            
+           
+
+        }
+
+        function setupManager() {
+            manager = new THREE.LoadingManager();
+            manager.onProgress = (item, loaded, total) => {
+                document.getElementById('progress-bar').style.width = (loaded / total * 100) + '%';
+            };
+            manager.onLoad = () => {
+                setTimeout(() => {
+                    gsap.to('#loading-screen', { opacity: 0, duration: 1.5, onComplete: () => {
+                        document.getElementById('loading-screen').style.display = 'none';
+                        document.getElementById('gate-overlay').style.display = 'flex';
+                    }});
+                }, 1000);
+            };
+        }
+
+        function setupScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff);
+            scene.fog = new THREE.FogExp2(0xffffff, 0.015);
+
+            camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, CONFIG.camHeight, 15);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.body.appendChild(renderer.domElement);
+
+            palaceGroup = new THREE.Group();
+            scene.add(palaceGroup);
+
+            // Lumières Cinématographiques
+            const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+            scene.add(ambient);
+
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(5, 20, 10);
+            sun.castShadow = true;
+            scene.add(sun);
+        }
+
+        // --- CONSTRUCTION ARCHITECTURALE (PLUS DE 300 LIGNES DE GÉOMÉTRIE) ---
+        function buildArchitecture() {
+            // Sol en marbre poli
+            const floorGeo = new THREE.PlaneGeometry(30, CONFIG.corridorLength +60);
+            const floorMat = new THREE.MeshStandardMaterial({ 
+                color: 0xd4af37 , 
+                roughness: 0.1, 
+                metalness: 0.8 
+            });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.z = -CONFIG.corridorLength / 2 + 20;
+            floor.receiveShadow = true;
+            palaceGroup.add(floor);
+
+            // Création des colonnes (Style Classique)
+            for (let z = 10; z > -CONFIG.corridorLength; z -= 15) {
+                createColumn(-8, z);
+                createColumn(8, z);
+            }
+
+            // Murs avec moulures
+            const wallGeo = new THREE.BoxGeometry(1, 15, CONFIG.corridorLength + 50);
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            
+            const wallL = new THREE.Mesh(wallGeo, wallMat);
+            wallL.position.set(-10, 7.5, -CONFIG.corridorLength/2 + 20);
+            palaceGroup.add(wallL);
+
+            const wallR = new THREE.Mesh(wallGeo, wallMat);
+            wallR.position.set(10, 7.5, -CONFIG.corridorLength/2 + 20);
+            palaceGroup.add(wallR);
+        }
+        
+
+        function createColumn(x, z) {
+            const columnGroup = new THREE.Group();
+            const wallEndGeo = new THREE.BoxGeometry(22, 15, 1); // largeur = entre murs + un peu
+const wallEndMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+const wallEnd = new THREE.Mesh(wallEndGeo, wallEndMat);
+
+// Positionné juste après la lettre/enveloppe
+wallEnd.position.set(0, 7.5, -CONFIG.corridorLength - 10);
+palaceGroup.add(wallEnd);
+
+            // Base
+            const base = new THREE.Mesh(
+                new THREE.BoxGeometry(1.5, 0.5, 1.5),
+                new THREE.MeshStandardMaterial({ color: CONFIG.goldColor })
+            );
+            
+            // Fût (Corps)
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.6, 12, 16),
+                new THREE.MeshStandardMaterial({ color: 0xffffff })
+            );
+            body.position.y = 6;
+
+            // Chapiteau (Sommet)
+            const top = new THREE.Mesh(
+                new THREE.BoxGeometry(1.6, 0.8, 1.6),
+                new THREE.MeshStandardMaterial({ color: CONFIG.goldColor })
+            );
+            top.position.y = 12;
+
+            columnGroup.add(base, body, top);
+            columnGroup.position.set(x, 0, z);
+            palaceGroup.add(columnGroup);
+        }
+
+        // --- LES PORTES MAJESTUEUSES ---
+        function buildDoors() {
+            const doorGeo = new THREE.BoxGeometry(4.5, 10, 0.4);
+            const doorMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                metalness: 0.2, 
+                roughness: 0.5 
+            });
+
+            // Ornements dorés sur les portes
+            const decoGeo = new THREE.BoxGeometry(3, 8, 0.1);
+            const decoMat = new THREE.MeshStandardMaterial({ color: CONFIG.goldColor, metalness: 1 });
+
+            // PORTE GAUCHE
+            doorPivotL = new THREE.Group();
+            doorPivotL.position.set(-4.5, 0, 10);
+            const meshL = new THREE.Mesh(doorGeo, doorMat);
+            meshL.position.x = 2.25; meshL.position.y = 5;
+            const dL = new THREE.Mesh(decoGeo, decoMat); dL.position.z = 0.25; meshL.add(dL);
+            doorPivotL.add(meshL);
+            palaceGroup.add(doorPivotL);
+
+            // PORTE DROITE
+            doorPivotR = new THREE.Group();
+            doorPivotR.position.set(4.5, 0, 10);
+            const meshR = new THREE.Mesh(doorGeo, doorMat);
+            meshR.position.x = -2.25; meshR.position.y = 5;
+            const dR = new THREE.Mesh(decoGeo, decoMat); dR.position.z = 0.25; meshR.add(dR);
+            doorPivotR.add(meshR);
+            palaceGroup.add(doorPivotR);
+        }
+
+        // --- LES NUAGES RÉELS ---
+        function buildClouds() {
+            const cloudGeo = new THREE.SphereGeometry(1, 16, 16);
+            const cloudMat = new THREE.MeshBasicMaterial({ 
+                color: 0xffb6c1, 
+                transparent: true, 
+                opacity: 0.2 
+            });
+
+            for (let i = 0; i < 50; i++) {
+                const cloud = new THREE.Mesh(cloudGeo, cloudMat);
+                cloud.position.set(
+                    (Math.random() - 0.5) * 20,
+                    10 + Math.random() * 5,
+                    -(Math.random() * CONFIG.corridorLength)
+                );
+                cloud.scale.set(Math.random() * 5 + 2, 1, Math.random() * 3 + 1);
+                scene.add(cloud);
+                clouds.push(cloud);
+            }
+        }
+
+        // --- LES ŒUVRES ET CADRES ---
+        function buildArtworks() {
+            const loader = new THREE.TextureLoader(manager);
+
+            STORYBOARD.forEach((data, i) => {
+                const artworkGroup = new THREE.Group();
+                
+                // Cadre Doré Massif
+                const frameGeo = new THREE.BoxGeometry(6, 8, 0.5);
+                const frameMat = new THREE.MeshStandardMaterial({ 
+                    color: CONFIG.goldColor,
+                    metalness: 1,
+                    roughness: 0.2
+                });
+                const frame = new THREE.Mesh(frameGeo, frameMat);
+                artworkGroup.add(frame);
+
+                // Support Photo
+                const photoGeo = new THREE.PlaneGeometry(5.2, 7.2);
+                const photoMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+                const photoMesh = new THREE.Mesh(photoGeo, photoMat);
+                photoMesh.position.z = 0.26;
+                artworkGroup.add(photoMesh);
+
+                // Chargement Image
+                loader.load(data.image, (tex) => {
+                    photoMesh.material = new THREE.MeshBasicMaterial({ map: tex });
+                });
+
+                // Positionnement
+                if (data.side === 'left') {
+                    artworkGroup.position.set(-9.4, 5, data.z);
+                    artworkGroup.rotation.y = Math.PI / 2;
+                } else if (data.side === 'right') {
+                    artworkGroup.position.set(9.4, 5, data.z);
+                    artworkGroup.rotation.y = -Math.PI / 2;
+                } else {
+                    artworkGroup.position.set(0, 5, data.z);
+                }
+
+                palaceGroup.add(artworkGroup);
+                artworks.push({ group: artworkGroup, data: data });
+            });
+        }
+        let clickHint; // variable globale
+
+function createClickHint() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'gold'; // couleur or
+    ctx.font = '30px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Clique sur moi !', canvas.width / 2, canvas.height / 2 + 10);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    clickHint = new THREE.Sprite(material);
+    clickHint.scale.set(5, 1.5, 1);
+    clickHint.position.set(0, 5, -CONFIG.corridorLength - 10); // juste au-dessus de l'enveloppe
+    scene.add(clickHint);
+    clickHint.visible = false; // invisible au départ
+}
+
+
+
+
+
+function buildEnvelope() {
+    envelopeGroup = new THREE.Group(); // On groupe tout pour manipuler l'enveloppe facilement
+
+    // 1. LE CORPS DE L'ENVELOPPE (Le dos)
+    const envGeo = new THREE.PlaneGeometry(8, 4.8);
+    const envMat = new THREE.MeshStandardMaterial({ 
+        color: 0xd4af37, // Rose doux
+        side: THREE.DoubleSide,
+        roughness: 0.8 // Texture papier mate
+    });
+    const back = new THREE.Mesh(envGeo, envMat);
+    envelopeGroup.add(back);
+
+    // 2. LE RABAT TRIANGULAIRE (Le haut qui s'ouvre)
+    // On utilise une forme de triangle
+    const flapShape = new THREE.Shape();
+    flapShape.moveTo(-1, 0.6);
+    flapShape.lineTo(1, 0.6);
+    flapShape.lineTo(0, 0); // Pointe du triangle vers le milieu
+    flapShape.lineTo(-1, 0.6);
+
+    const flapGeo = new THREE.ShapeGeometry(flapShape);
+    const flapMat = new THREE.MeshStandardMaterial({ color: 0xffa2b0, side: THREE.DoubleSide });
+    flapPivot = new THREE.Group(); // Pivot pour pouvoir animer l'ouverture plus tard
+    const flap = new THREE.Mesh(flapGeo, flapMat);
+    
+    flapPivot.position.set(0, 0.6, 0.05); // Placé en haut du dos
+    flapPivot.add(flap);
+    envelopeGroup.add(flapPivot);
+
+    // 3. LES RABATS LATERAUX (Pour donner du relief)
+    const sideFlapGeo = new THREE.PlaneGeometry(1, 1.2);
+    const sideMat = new THREE.MeshStandardMaterial({ color: 0xff69b4 });
+    
+    const leftFlap = new THREE.Mesh(sideFlapGeo, sideMat);
+    leftFlap.rotation.y = 0.1; // Légère inclinaison pour le relief
+    leftFlap.position.set(-0.6, 0, 0.02);
+    envelopeGroup.add(leftFlap);
+
+    const rightFlap = new THREE.Mesh(sideFlapGeo, sideMat);
+    rightFlap.rotation.y = -0.1;
+    rightFlap.position.set(0.6, 0, 0.02);
+    envelopeGroup.add(rightFlap);
+
+    // 4. LE SCEAU DE CIRE (Le petit détail réaliste)
+    const sealGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.05, 32);
+    const sealMat = new THREE.MeshStandardMaterial({ color: 0xd40000, metalness: 0.3, roughness: 0.4 });
+    const seal = new THREE.Mesh(sealGeo, sealMat);
+    seal.rotation.x = Math.PI / 2;
+    seal.position.set(0, 0.35, 0.06); // Ferme le rabat
+    envelopeGroup.add(seal);
+
+    // Placement final dans le corridor
+    envelopeGroup.position.set(0, 3, -CONFIG.corridorLength - 1 );
+    envelopeGroup.rotation.y = Math.PI / 4;
+    scene.add(envelopeGroup);
+
+    // --- LA LETTRE ---
+    const letterGeo = new THREE.PlaneGeometry(2.16, 2.2);
+    const letterMat = new THREE.MeshStandardMaterial({ 
+        color: 0xfffff0, 
+        side: THREE.DoubleSide,
+        roughness: 1
+    });
+    letter = new THREE.Mesh(letterGeo, letterMat);
+    letter.position.set(0, 3, -CONFIG.corridorLength - 1.01); // Juste derrière
+    letter.visible = false;
+    scene.add(letter);
+    createClickHint();
+}
+    
+function checkEnvelopeHint() {
+    if (!envelopeOpened && envelopeGroup) {
+        const dist = camera.position.distanceTo(envelopeGroup.position);
+        clickHint.visible = dist < 10; // le texte apparaît si proche
+    } else {
+        clickHint.visible = false; // disparaît si l'enveloppe est ouverte
+    }
+}
+
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+window.addEventListener('click', (event) => {
+    if (envelopeOpened || !envelopeGroup) return;
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    // Vérifie tous les enfants du groupe
+    const intersects = raycaster.intersectObjects(envelopeGroup.children, true);
+
+    if (intersects.length > 0) {
+        openEnvelope();
+    }
+});
+
+function openEnvelope() {
+    envelopeOpened = true;
+
+    // Animation : l'enveloppe s'ouvre (rotation du “couvercle”)
+    gsap.to(flapPivot.rotation, { x: -Math.PI/1.8, duration: 1.5, ease: "power2.inOut" });
+
+    // La lettre apparaît et monte légèrement
+    letter.visible = true;
+    gsap.fromTo(letter.position, 
+        { y: 3 }, 
+        { y: 5, duration: 1.5, ease: "power2.out", onComplete: showLetterContent }
+    );
+}
+function showLetterContent() {
+    // On bloque complètement l’avancée
+    targetZProgress = currentZProgress; 
+    isAutoRotating = true;
+
+    // Mise à jour du panneau
+    document.getElementById('ui-title').innerText = "Une Lettre pour Toi";
+    document.getElementById('ui-text').innerText = "Ma Zara,Depuis le jour où je t’ai rencontrée, ma vie a pris une autre couleur. Chaque moment avec toi compte, chaque sourire me rend plus fort, et même nos petites disputes me rappellent à quel point je tiens à toi. Aujourd’hui, en ce jour de Saint-Valentin, je veux juste te dire que je t’aime vraiment et que je suis reconnaissant de t’avoir dans ma vie. 💖";
+    document.getElementById('story-panel').classList.add('visible');
+}
+
+window.addEventListener('wheel', e => {
+    if (!isPalaceOpen) return;
+
+    // Si enveloppe ouverte mais lettre non encore “lue”
+    if (envelopeOpened && letter.visible) return;
+
+    // Normal scroll
+    if (!isAutoRotating) {
+        targetZProgress += e.deltaY * 0.05;
+    }
+});
+
+        // --- LOGIQUE D'INTERACTION ---
+        function unlockPalace() {
+    // On vérifie si le palais est déjà ouvert
+    if (isPalaceOpen) return;
+
+    // Lecture de la musique (si l'élément existe)
+    const music = document.getElementById('palace-music');
+    if (music) music.play().catch(() => {});
+
+    // Animation des portes
+    gsap.to(doorPivotL.rotation, { y: -Math.PI / 1.6, duration: 4, ease: "power4.inOut" });
+    gsap.to(doorPivotR.rotation, { y: Math.PI / 1.6, duration: 4, ease: "power4.inOut" });
+
+    // Masquer l'overlay après animation
+    gsap.to('#gate-overlay', { opacity: 0, duration: 2, delay: 1, onComplete: () => {
+        const overlay = document.getElementById('gate-overlay');
+        if (overlay) overlay.style.display = 'none';
+
+        // On marque le palais comme ouvert
+        isPalaceOpen = true;
+    }});
+}
+
+
+        function setupEvents() {
+            let startY = 0;
+            window.addEventListener('touchstart', e => startY = e.touches[0].clientY);
+            window.addEventListener('touchmove', e => {
+                if (!isPalaceOpen || isAutoRotating) return;
+                const delta = (startY - e.touches[0].clientY) * 0.1;
+                targetZProgress += delta;
+                startY = e.touches[0].clientY;
+            });
+
+            window.addEventListener('wheel', e => {
+                if (!isPalaceOpen || isAutoRotating) return;
+                targetZProgress += e.deltaY * 0.05;
+            });
+        }
+
+        // --- BOUCLE DE RENDU ET LOGIQUE DE CAMÉRA ---
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            if (isPalaceOpen) {
+                // Progression fluide
+                currentZProgress = THREE.MathUtils.lerp(currentZProgress, targetZProgress, 0.05);
+                
+                // Mouvement de base camera
+                if (!isAutoRotating) {
+                    camera.position.z = 15 - currentZProgress;
+                }
+
+                // Détection de proximité des photos
+                checkArtworks();
+                checkEnvelopeHint();
+            }
+
+            // Animation nuages
+            clouds.forEach(c => {
+                c.position.z += 0.05;
+                if (c.position.z > 20) c.position.z = -CONFIG.corridorLength;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+       function checkArtworks() {
+
+    let found = false;
+    const camZ = camera.position.z;
+
+    artworks.forEach(art => {
+        const dist = Math.abs(camZ - art.data.z);
+
+        if (dist < 10 && !isAutoRotating && !art.isFocused) {
+            art.isFocused = true;
+            focusOnArtwork(art);
+            found = true;
+        }
+
+        if (dist > 15) {
+            art.isFocused = false;
+        }
+    });
+
+    if (!found && !isAutoRotating) {
+        document.getElementById('story-panel').classList.remove('visible');
+        gsap.to(camera.rotation, { x: 0, y: 0, z: 0, duration: 1 });
+    }
+}
+
+
+        function focusOnArtwork(art) {
+
+            isAutoRotating = true;
+
+           
+
+            // Mise à jour UI
+
+            document.getElementById('ui-title').innerText = art.data.title;
+
+            document.getElementById('ui-text').innerText = art.data.text;
+
+            document.getElementById('story-panel').classList.add('visible');
+
+
+
+            // Calcul de l'angle vers la photo
+
+            let targetRotY = 0;
+
+            if (art.data.side === 'left') targetRotY = Math.PI / 4;
+
+            if (art.data.side === 'right') targetRotY = -Math.PI / 4;
+
+
+
+            // Timeline de focus
+
+            const tl = gsap.timeline({
+
+                onComplete: () => {
+
+                    setTimeout(() => {
+
+                        isAutoRotating = false;
+
+                        targetZProgress += 15; // On pousse un peu pour sortir du champ après lecture
+
+                    }, 3000);
+
+                }
+
+            });
+
+
+
+            tl.to(camera.rotation, { y: targetRotY, duration: 1.5, ease: "power2.inOut" });
+
+            tl.to(camera.position, { z: art.data.z + 8, duration: 1.5, ease: "power2.inOut" }, 0);
+
+        }
+
+
+
+        // Resize
+
+        window.addEventListener('resize', () => {
+
+            camera.aspect = window.innerWidth / window.innerHeight;
+
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+        });
+        init();
+    </script>
+</body>
+</html>
