@@ -584,34 +584,63 @@ function checkEnvelopeHint() {
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-window.addEventListener('click', (event) => {
+// --- SYSTÈME DE DÉTECTION (PC + MOBILE) ---
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+function handleInteraction(event) {
     if (envelopeOpened || !envelopeGroup) return;
 
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+    // Gestion PC (event.clientX) vs Mobile (touches[0])
+    let clientX, clientY;
+    if (event.touches && event.touches.length > 0) {
+        clientX = event.touches[0].clientX;
+        clientY = event.touches[0].clientY;
+    } else if (event.changedTouches && event.changedTouches.length > 0) {
+        clientX = event.changedTouches[0].clientX;
+        clientY = event.changedTouches[0].clientY;
+    } else {
+        clientX = event.clientX;
+        clientY = event.clientY;
+    }
+
+    mouse.x = (clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
 
-    // Vérifie tous les enfants du groupe
+    // On vérifie si on touche l'enveloppe ou n'importe quel enfant (sceau, rabat, etc.)
     const intersects = raycaster.intersectObjects(envelopeGroup.children, true);
 
     if (intersects.length > 0) {
         openEnvelope();
     }
-});
+}
 
+// On écoute les deux : clic et toucher
+window.addEventListener('click', handleInteraction);
+window.addEventListener('touchend', handleInteraction); 
+
+// --- FONCTION OUVERTURE ---
 function openEnvelope() {
+    if(envelopeOpened) return;
     envelopeOpened = true;
 
-    // Animation : l'enveloppe s'ouvre (rotation du “couvercle”)
-    gsap.to(flapPivot.rotation, { x: -Math.PI/1.8, duration: 1.5, ease: "power2.inOut" });
+    // On cache l'indice "Clique sur moi" immédiatement
+    if(clickHint) clickHint.visible = false;
 
-    // La lettre apparaît et monte légèrement
+    // Animation du rabat
+    gsap.to(flapPivot.rotation, { x: -Math.PI / 1.5, duration: 1.2, ease: "power2.inOut" });
+
+    // La lettre sort de l'enveloppe
     letter.visible = true;
-    gsap.fromTo(letter.position, 
-        { y: 3 }, 
-        { y: 5, duration: 1.5, ease: "power2.out", onComplete: showLetterContent }
-    );
+    gsap.to(letter.position, { 
+        y: 4.5, 
+        z: camera.position.z - 3, // Elle s'approche de l'écran
+        duration: 2, 
+        ease: "power2.out",
+        onComplete: showLetterContent 
+    });
 }
 function showLetterContent() {
     // On bloque complètement l’avancée
@@ -798,4 +827,5 @@ window.addEventListener('wheel', e => {
         init();
     </script>
 </body>
+
 </html>
